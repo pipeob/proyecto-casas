@@ -8,4 +8,4 @@ Aplicación web que predice precios de viviendas usando Random Forest.
 - Streamlit
 
 ## Demo
-(link aquí cuando hagas deploy)
+proyecto-casas.streamlit.app
