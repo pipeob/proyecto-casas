@@ -1,47 +1,61 @@
 import streamlit as st
-import joblib
 import pandas as pd
+import joblib
+import numpy as np
 
 # cargar modelo
 model = joblib.load("modelo_pipeline.pkl")
 
-st.title("Predicción de precios de casas 🏠")
+st.title("🏠 Predicción de precios de casas")
 
-# cargar dataset original
-df_original = pd.read_csv("train.csv")
+st.markdown("Ingresa las características de la casa:")
 
-# quitar target
-df_original = df_original.drop(columns=["SalePrice"])
+# UI mejorada
+col1, col2 = st.columns(2)
 
-# valores por defecto
-default_values = {}
+with col1:
+    overall_qual = st.slider("Calidad general", 1, 10, 5)
+    gr_liv_area = st.number_input("Área habitable (sqft)", 300, 5000, 1000)
+    total_bsmt = st.number_input("Área sótano (sqft)", 0, 3000, 500)
 
-for col in df_original.columns:
-    if pd.api.types.is_numeric_dtype(df_original[col]):
-        default_values[col] = df_original[col].median()
-    else:
-        mode = df_original[col].mode()
-        default_values[col] = mode[0] if not mode.empty else "Unknown"
+with col2:
+    garage_cars = st.slider("Capacidad garaje", 0, 4, 2)
+    garage_area = st.number_input("Área garaje (sqft)", 0, 1000, 200)
+    year_built = st.slider("Año construcción", 1900, 2025, 2000)
 
-# inputs del usuario
-overall_qual = st.slider("Calidad general (1-10)", 1, 10, 5)
-gr_liv_area = st.number_input("Área habitable (sqft)", 500, 5000, 1500)
-garage_cars = st.slider("Capacidad de garaje", 0, 4, 2)
-garage_area = st.number_input("Área del garaje", 0, 1000, 300)
-total_bsmt = st.number_input("Área del sótano", 0, 3000, 800)
-year_built = st.number_input("Año construcción", 1900, 2025, 2000)
+# conversión sqft → m2
+st.markdown(f"📐 Área habitable en m²: **{gr_liv_area * 0.092903:.2f} m²**")
 
-# crear dataframe
-input_data = pd.DataFrame([default_values])
-
-input_data["OverallQual"] = overall_qual
-input_data["GrLivArea"] = gr_liv_area
-input_data["GarageCars"] = garage_cars
-input_data["GarageArea"] = garage_area
-input_data["TotalBsmtSF"] = total_bsmt
-input_data["YearBuilt"] = year_built
+# dataframe input
+input_data = pd.DataFrame({
+    "OverallQual": [overall_qual],
+    "GrLivArea": [gr_liv_area],
+    "TotalBsmtSF": [total_bsmt],
+    "GarageCars": [garage_cars],
+    "GarageArea": [garage_area],
+    "YearBuilt": [year_built]
+})
 
 # predicción
 if st.button("Predecir precio"):
-    prediction = model.predict(input_data)
-    st.success(f"Precio estimado: ${prediction[0]:,.2f}")
+    prediction = model.predict(input_data)[0]
+
+    # 💰 rango de precios
+    mae = 17726  # usa tu MAE real
+    lower = prediction - mae
+    upper = prediction + mae
+
+    st.success(f"💰 Precio estimado: ${prediction:,.0f}")
+
+    st.info(f"📊 Rango probable: ${lower:,.0f} - ${upper:,.0f}")
+
+    if st.checkbox("Ver importancia de variables"):
+        importances = model.named_steps["model"].feature_importances_
+        feature_names = model.named_steps["preprocessor"].get_feature_names_out()
+
+        df_imp = pd.DataFrame({
+            "feature": feature_names,
+            "importance": importances
+        }).sort_values(by="importance", ascending=False).head(10)
+
+        st.bar_chart(df_imp.set_index("feature"))
