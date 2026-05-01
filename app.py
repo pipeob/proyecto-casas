@@ -9,23 +9,55 @@ columns = joblib.load("columns.pkl")
 
 st.title("🏠 Predicción de precios de casas")
 
+unit = st.radio("Selecciona unidad de medida:", ["sqft", "m²"])
+
 st.markdown("Ingresa las características de la casa:")
 
 # UI mejorada
+# factor de conversión
+SQFT_TO_M2 = 0.092903
+M2_TO_SQFT = 10.7639
+
 col1, col2 = st.columns(2)
 
 with col1:
     overall_qual = st.slider("Calidad general", 1, 10, 5)
-    gr_liv_area = st.number_input("Área habitable (sqft)", 300, 5000, 1000)
-    total_bsmt = st.number_input("Área sótano (sqft)", 0, 3000, 500)
+
+    gr_liv_area_input = st.number_input(
+        f"Área habitable ({unit})",
+        30 if unit == "m²" else 300,
+        500 if unit == "m²" else 5000,
+        100 if unit == "m²" else 1000
+    )
+
+    total_bsmt_input = st.number_input(
+        f"Área sótano ({unit})",
+        0,
+        300 if unit == "m²" else 3000,
+        50 if unit == "m²" else 500
+    )
 
 with col2:
     garage_cars = st.slider("Capacidad garaje", 0, 4, 2)
-    garage_area = st.number_input("Área garaje (sqft)", 0, 1000, 200)
+
+    garage_area_input = st.number_input(
+        f"Área garaje ({unit})",
+        0,
+        100 if unit == "m²" else 1000,
+        20 if unit == "m²" else 200
+    )
+
     year_built = st.slider("Año construcción", 1900, 2025, 2000)
 
-# conversión sqft → m2
-st.markdown(f"📐 Área habitable en m²: **{gr_liv_area * 0.092903:.2f} m²**")
+    # convertir a sqft si el usuario usa m²
+if unit == "m²":
+    gr_liv_area = gr_liv_area_input * M2_TO_SQFT
+    total_bsmt = total_bsmt_input * M2_TO_SQFT
+    garage_area = garage_area_input * M2_TO_SQFT
+else:
+    gr_liv_area = gr_liv_area_input
+    total_bsmt = total_bsmt_input
+    garage_area = garage_area_input
 
 
 # dataframe input
@@ -38,6 +70,7 @@ input_data["TotalBsmtSF"] = total_bsmt
 input_data["GarageCars"] = garage_cars
 input_data["GarageArea"] = garage_area
 input_data["YearBuilt"] = year_built
+
 
 # predicción
 if st.button("Predecir precio"):
